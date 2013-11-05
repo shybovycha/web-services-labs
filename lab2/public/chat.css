@@ -15,3 +15,8 @@
     width: 90px;
     margin-left: 15px;
 }
+
+.server-msg {
+    font-style: italic;
+    color: #1515F0;
+}
