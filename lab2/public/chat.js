@@ -3,12 +3,12 @@ window.onload = function() {
     var socket = io.connect('http://localhost:80');
 
     socket.on('message', function (data) {
-        if(data.message) {
+        if (data.message) {
             messages.push(data.message);
 
             var html = '';
 
-            for(var i=0; i<messages.length; i++) {
+            for(var i = 0; i < messages.length; i++) {
                 html += messages[i] + '<br />';
             }
 
