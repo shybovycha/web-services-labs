@@ -17,10 +17,29 @@ html
         #content
         .controls
             form#send_form(action='#', method='post')
-                input.message
+                input.message(autofocus=true)
                 input.send(type='submit', value='send')
         .help
-            |Use command &nbsp;
-            em
-                |CONNECT &lt;name&gt;
-            |&nbsp; to join the chat
+            table
+                thead
+                    tr
+                        td
+                            |Command
+                        td
+                            |Effect
+                tbody
+                    tr
+                        td
+                            |/join <b>name</b>
+                        td
+                            |Join the chat
+                    tr
+                        td
+                            |/list
+                        td
+                            |See who's online
+                    tr
+                        td
+                            |@<b>name</b> <em>message</em>
+                        td
+                            |Send a private message
