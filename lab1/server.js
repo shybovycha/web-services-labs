@@ -31,9 +31,9 @@ http.createServer(function(request, response) {
             continue;
         }
 
-        var stats = fs.statSync(file_path);
+        var stats = fs.lstatSync(file_path);
 
-        if (stats.isFile) {
+        if (!stats.isDirectory() && stats.isFile()) {
             console.log("Yep! That's it!");
 
             found = true;

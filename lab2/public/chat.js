@@ -1,18 +1,20 @@
 window.onload = function() {
-    var messages = [];
     var socket = io.connect('http://localhost:80');
+    var content_elt = document.querySelector('#content');
 
     socket.on('message', function (data) {
         if (data.message) {
-            messages.push(data.message);
+            var html = '<span class="server-msg">' + data.sender + ':' + data.message + '</span><br />';
 
-            var html = '';
+            content_elt.innerHTML = content_elt.innerHTML + html;
+        } else if (data.private_message) {
+            var html = '<span class="private-msg">' + data.sender + ':' + data.message + '</span><br />';
 
-            for(var i = 0; i < messages.length; i++) {
-                html += messages[i] + '<br />';
-            }
+            content_elt.innerHTML = content_elt.innerHTML + html;
+        } else if (data.error) {
+            var html = '<span class="server-err">' + data.error + '</span><br />';
 
-            document.querySelector('#content').innerHTML = html;
+            content_elt.innerHTML = content_elt.innerHTML + html;
         } else {
             console.log("There is a problem:", data);
         }
@@ -28,4 +30,14 @@ window.onload = function() {
 
         evt.preventDefault();
     });
-}
+};
+
+/*window.onload = function() {
+    var loginForm = document.querySelector('#login_form');
+
+    loginForm.addEventListener('submit', function(evt) {
+        var name = document.querySelector('.username').value;
+        connect(name);
+        evt.preventDefault();
+    });
+}*/
