@@ -6,6 +6,7 @@
     "dependencies": {
         "express": "latest",
         "socket.io": "latest",
-        "jade": "latest"
+        "jade": "latest",
+        "mysql": "latest"
     }
 }

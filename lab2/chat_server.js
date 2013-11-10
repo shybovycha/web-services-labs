@@ -1,4 +1,8 @@
-var io = null;
+var io = null,
+    dbConnection = null;
+
+var mysql = require('mysql'),
+    process = require('process');
 
 var ChatServer = function(port, app) {
     io = require('socket.io').listen(app.listen(port));
@@ -9,6 +13,23 @@ var ChatServer = function(port, app) {
     this.logMessages = false;
 
     io.sockets.on('connection', this.onConnection.bind(this));
+
+    dbConnection = mysql.createConnection({
+        host : 'localhost',
+        user : 'chat',
+        password : 'abc123',
+        database: 'chat'
+    });
+
+    dbConnection.connect();
+
+    process.on('SIGTERM', function() {
+        app.close();
+    });
+
+    app.on('close', function() {
+        dbConnection.end();
+    });
 };
 
 ChatServer.prototype.onConnection = function(socket) {
@@ -30,6 +51,20 @@ ChatServer.prototype.onConnection = function(socket) {
         } else {
             that.handleBroadcastMessage(data, socket);
         }
+    });
+};
+
+ChatServer.prototype.storeMessage = function(message, from, to) {
+    var binding = [
+        new Date(),
+        from || 'server',
+        to || 'all',
+        message
+    ];
+
+    dbConnection.query('INSERT INTO messages (timestamp, from, to, message) VALUES (?, ?, ?, ?)', binding, function(err) {
+        if (err)
+            throw err;
     });
 };
 
@@ -80,6 +115,8 @@ ChatServer.prototype.handleJoinCommand = function(data, socket) {
             name: name
         });
 
+        this.storeMessage(name + ' joined', 'server', 'all');
+
         this.handleBroadcastMessage({ 'message': 'Welcome new user, ' + name + '!' })
     } else {
         socket.emit('message', { 'message': 'This username is already taken!', 'sender': 'server' })
@@ -110,6 +147,8 @@ ChatServer.prototype.handleBroadcastMessage = function(data, socket) {
     var message = data.message,
         senderName = this.getSenderName(socket);
 
+    this.storeMessage(message, senderName, 'all');
+
     this.users.forEach(function(user) {
         user.socket.emit('message', { 'message': message, 'sender': senderName });
     });
@@ -117,11 +156,13 @@ ChatServer.prototype.handleBroadcastMessage = function(data, socket) {
 
 ChatServer.prototype.handlePrivateMessage = function(data, socket) {
     var message = data.message.replace(this.getRegexp('private'), '$2'),
-        recipient = data.message.replace(this.getRegexp('private'), '$1'),
+        recipientName = data.message.replace(this.getRegexp('private'), '$1'),
         senderName = this.getSenderName(socket);
 
+    this.storeMessage(message, senderName, recipientName);
+
     this.users.forEach(function(user) {
-        if (user.name == recipient) {
+        if (user.name == recipientName) {
             user.socket.emit('message', { 'message': message, 'sender': '[' + senderName + ']' });
             socket.emit('message', { 'message': message, 'sender': '[' + senderName + ']' });
             return false;
