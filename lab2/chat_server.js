@@ -1,8 +1,7 @@
 var io = null,
     dbConnection = null;
 
-var mysql = require('mysql'),
-    process = require('process');
+var mysql = require('mysql');
 
 var ChatServer = function(port, app) {
     io = require('socket.io').listen(app.listen(port));
@@ -62,7 +61,7 @@ ChatServer.prototype.storeMessage = function(message, from, to) {
         message
     ];
 
-    dbConnection.query('INSERT INTO messages (timestamp, from, to, message) VALUES (?, ?, ?, ?)', binding, function(err) {
+    dbConnection.query('INSERT INTO messages (timestamp, sender, receiver, message) VALUES (?, ?, ?, ?)', binding, function(err) {
         if (err)
             throw err;
     });
