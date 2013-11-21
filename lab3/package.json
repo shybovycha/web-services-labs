@@ -1,0 +1,12 @@
+{
+    "name": "web-services-labs",
+    "version": "0.1.0",
+    "author": "Artem Shoobovych",
+    "description": "Lab works for Web Services discipline",
+    "dependencies": {
+        "express": "latest",
+        "socket.io": "latest",
+        "jade": "latest",
+        "mysql": "latest"
+    }
+}
