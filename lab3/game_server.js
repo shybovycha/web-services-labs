@@ -76,28 +76,30 @@ GameServer.prototype.handleCreateCommand = function(data, socket) {
             sign: sign
         },
         guest_player: null,
-        token: token
+        token: token,
+        ended: false
     });
 
     socket.emit('waiting', { token: token });
 };
 
 GameServer.prototype.handleJoinCommand = function(data, socket) {
-    var sign = this.getRandomSign();
-
     for (var i = 0; i < this.games.length; i++) {
         var game = this.games[i];
 
-        if ((game.guest_player == null) && (game.host_player.sign != sign)) {
+        if (game.guest_player == null) {
+            var host_sign = game.host_player.sign,
+                guest_sign = (host_sign == 'cross') ? 'zero' : 'cross';
+
             game.guest_player = {
-                sign: sign,
+                sign: guest_sign,
                 socket: socket
             };
 
-            game.host_player.socket.emit('found_game', { token: game.token });
-            game.guest_player.socket.emit('found_game', { token: game.token });
+            game.host_player.socket.emit('found_game', { token: game.token, sign: host_sign });
+            game.guest_player.socket.emit('found_game', { token: game.token, sign: guest_sign });
 
-            if (game.host_player.sign == 'cross') {
+            if (host_sign == 'cross') {
                 // note the inversion
                 game = this.madeTurn(game, 'guest');
             } else {
@@ -139,9 +141,107 @@ GameServer.prototype.setGame = function(token, game) {
     return false;
 };
 
-GameServer.prototype.madeTurn = function(game, turned_player) {
-    if (game.turn != null && game.turn != turned_player) {
-        return game;
+GameServer.prototype.isTurnValid = function(game, row, col) {
+    return (game.field[row][col] == null);
+};
+
+GameServer.prototype.isMyTurn = function(game, turned_player) {
+    return (game.turn == turned_player);
+};
+
+GameServer.prototype.isTurnWinning = function(game, turned_player, row, col) {
+    var field = [[null, null, null], [null, null, null], [null, null, null]];
+
+    for (var i = 0; i < 3; i++) {
+        for (var t = 0; t < 3; t++) {
+            field[i][t] = game.field[i][t];
+        }
+    }
+
+    var player_sign = this.getPlayer(game, turned_player).sign;
+
+    field[row][col] = player_sign;
+
+    // check horizontal lines
+    for (var i = 0; i < 3; i++) {
+        var fl = true;
+
+        for (var t = 0; t < 3; t++) {
+            if (field[i][t] != player_sign) {
+                fl = false;
+                break;
+            }
+        }
+
+        if (fl == true) {
+            return true;
+        }
+    }
+
+    // check vertical lines
+    for (var i = 0; i < 3; i++) {
+        var fl = true;
+
+        for (var t = 0; t < 3; t++) {
+            if (field[t][i] != player_sign) {
+                fl = false;
+                break;
+            }
+        }
+
+        if (fl == true) {
+            return true;
+        }
+    }
+
+    // check main diagonal
+    {
+        var fl = true;
+
+        for (var i = 0; i < 3; i++) {
+            if (field[i][i] != player_sign) {
+                fl = false;
+                break;
+            }
+        }
+
+        if (fl == true) {
+            return true;
+        }
+    }
+
+    // check additional diagonal
+    {
+        var fl = true;
+
+        for (var i = 0; i < 3; i++) {
+            if (field[2 - i][i] != player_sign) {
+                fl = false;
+                break;
+            }
+        }
+
+        if (fl == true) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
+GameServer.prototype.getPlayer = function(game, turned_player) {
+    return game[turned_player + '_player'];
+};
+
+GameServer.prototype.madeTurn = function(game, turned_player, row, col) {
+
+    if (typeof(row) != 'undefined' && typeof(col) != 'undefined') {
+        var player_sign = this.getPlayer(game, turned_player).sign;
+
+        game.field[row][col] = player_sign;
+
+        game.host_player.socket.emit('set_field', { row: row, col: col, sign: player_sign });
+        game.guest_player.socket.emit('set_field', { row: row, col: col, sign: player_sign });
     }
 
     if (turned_player == 'guest') {
@@ -164,10 +264,29 @@ GameServer.prototype.handleMoveCommand = function(data, socket) {
         return;
     }
 
-    if (game.host_player.socket == socket) {
-        game = this.madeTurn(game, 'host');
-    } else {
-        game = this.madeTurn(game, 'guest');
+    var turned_player = (game.host_player.socket == socket) ? 'host' : 'guest',
+        player_sign = this.getPlayer(game, turned_player).sign,
+        row = data.row,
+        col = data.col;
+
+    if (!this.isMyTurn(game, turned_player) || !this.isTurnValid(game, row, col)) {
+        return;
+    }
+
+    game = this.madeTurn(game, turned_player, row, col);
+
+    if (this.isTurnWinning(game, turned_player, row, col)) {
+        var msg = player_sign + 'es won!';
+
+        if (player_sign == 'cross') {
+            msg = "Crosses won!"
+        } else {
+            msg = "Zeros won!"
+        }
+
+        game.host_player.socket.emit('win', { message: msg });
+        game.guest_player.socket.emit('win', { message: msg });
+        game.ended = true;
     }
 
     this.setGame(data.token, game);
